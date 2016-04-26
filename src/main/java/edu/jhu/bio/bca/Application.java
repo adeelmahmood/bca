@@ -1,31 +1,27 @@
 package edu.jhu.bio.bca;
 
-import java.awt.Dimension;
+import java.io.IOException;
 import java.util.List;
-
-import javax.swing.JFrame;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+import org.graphstream.graph.Graph;
+import org.graphstream.graph.implementations.DefaultGraph;
+import org.graphstream.stream.file.FileSource;
+import org.graphstream.stream.file.FileSourceGraphML;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
-import com.tinkerpop.blueprints.Edge;
-import com.tinkerpop.blueprints.Vertex;
-import com.tinkerpop.blueprints.oupls.jung.GraphJung;
-
 import edu.jhu.bio.bca.graph.BetweennessCentrality;
 import edu.jhu.bio.bca.model.MGraph;
 import edu.jhu.bio.bca.parsers.GraphParser;
 import edu.jhu.bio.bca.utils.GraphUtils;
-import edu.uci.ics.jung.algorithms.layout.CircleLayout;
-import edu.uci.ics.jung.visualization.BasicVisualizationServer;
 
 @Configuration
 @ComponentScan
@@ -79,17 +75,16 @@ public class Application implements CommandLineRunner {
 		GraphUtils.saveGraph(graph, "out.graphml");
 
 		// visuailzation
-		GraphJung<MGraph> graph2 = new GraphJung<MGraph>(graph);
-		CircleLayout<Vertex, Edge> layout = new CircleLayout<Vertex, Edge>(graph2);
-		layout.setSize(new Dimension(300, 300));
-		BasicVisualizationServer<Vertex, Edge> viz = new BasicVisualizationServer<Vertex, Edge>(layout);
-		viz.setPreferredSize(new Dimension(350, 350));
-
-		JFrame frame = new JFrame();
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		frame.getContentPane().add(viz);
-		frame.pack();
-		frame.setVisible(true);
+		Graph g = new DefaultGraph("g");
+		FileSource fs = new FileSourceGraphML();
+		fs.addSink(g);
+		try {
+			fs.readAll("out.graphml");
+		} catch (IOException e) {
+		} finally {
+			fs.removeSink(g);
+		}
+		g.display();
 	}
 
 	private GraphParser getParser(String clsName) throws ClassNotFoundException {
