@@ -1,6 +1,5 @@
 package edu.jhu.bio.bca;
 
-import java.io.IOException;
 import java.util.List;
 
 import org.apache.commons.cli.CommandLine;
@@ -8,10 +7,6 @@ import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
-import org.graphstream.graph.Graph;
-import org.graphstream.graph.implementations.DefaultGraph;
-import org.graphstream.stream.file.FileSource;
-import org.graphstream.stream.file.FileSourceGraphML;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -55,7 +50,7 @@ public class Application implements CommandLineRunner {
 		String path = cli.getOptionValue("input");
 
 		// retrieve parser
-		String parserClassName = cli.getOptionValue("parser");
+		String parserClassName = cli.getOptionValue("parser", "EmailGraphParser");
 		GraphParser parser = getParser(GraphParser.class.getPackage().getName() + "." + parserClassName);
 		if (parser == null) {
 			System.err.println("Unknown parser " + parserClassName);
@@ -73,18 +68,7 @@ public class Application implements CommandLineRunner {
 
 		// save final graph
 		GraphUtils.saveGraph(graph, "out.graphml");
-
-		// visuailzation
-		Graph g = new DefaultGraph("g");
-		FileSource fs = new FileSourceGraphML();
-		fs.addSink(g);
-		try {
-			fs.readAll("out.graphml");
-		} catch (IOException e) {
-		} finally {
-			fs.removeSink(g);
-		}
-		g.display();
+		GraphUtils.saveGraphForPageRankWithSpark(graph, "vertices.txt", "edges.txt");
 	}
 
 	private GraphParser getParser(String clsName) throws ClassNotFoundException {

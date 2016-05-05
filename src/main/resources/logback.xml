@@ -50,6 +50,20 @@
 	<logger name="javax.mail">
 		<level value="warn" />
 	</logger>
+	
+	<logger name="java.awt">
+		<level value="info" />
+	</logger>
+	<logger name="sun.awt">
+		<level value="info" />
+	</logger>
+	<logger name="javax.swing">
+		<level value="info" />
+	</logger>
+	<logger name="sun.lwawt">
+		<level value="info" />
+	</logger>
+	
 
 	<root level="all">
 		<appender-ref ref="STDOUT" />

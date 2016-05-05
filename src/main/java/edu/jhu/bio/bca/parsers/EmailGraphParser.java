@@ -37,6 +37,8 @@ public class EmailGraphParser extends SimpleFileVisitor<Path> implements GraphPa
 
 	private static final Logger log = LoggerFactory.getLogger(EmailGraphParser.class);
 
+	private Session s = Session.getDefaultInstance(new Properties());
+
 	private int dirCount;
 	private int fileCount;
 
@@ -45,9 +47,9 @@ public class EmailGraphParser extends SimpleFileVisitor<Path> implements GraphPa
 
 	private boolean processing = false;
 
-	private String suffix = "";
-	private String folderNameFilter = "";
-	private int weightThreshold = 25;
+	private String suffix;
+	private String folderNameFilter;
+	private int weightThreshold;
 
 	public EmailGraphParser() {
 		opts.addOption("email_parser_email_suffix", true,
@@ -65,9 +67,9 @@ public class EmailGraphParser extends SimpleFileVisitor<Path> implements GraphPa
 
 	@Override
 	public void init(CommandLine cli) {
-		suffix = cli.getOptionValue("email_parser_email_suffix");
-		folderNameFilter = cli.getOptionValue("email_parser_folder_name_filter");
-		weightThreshold = Integer.parseInt(cli.getOptionValue("email_parser_edge_min_weight"));
+		suffix = cli.getOptionValue("email_parser_email_suffix", "enron.com");
+		folderNameFilter = cli.getOptionValue("email_parser_folder_name_filter", "sent");
+		weightThreshold = Integer.parseInt(cli.getOptionValue("email_parser_edge_min_weight", "5"));
 	}
 
 	@Override
@@ -93,16 +95,14 @@ public class EmailGraphParser extends SimpleFileVisitor<Path> implements GraphPa
 					graph.removeVertex(vertex);
 				}
 			}
-			System.out.println("Graph reduced to " + count(graph.getVertices()) + " vertices and "
-					+ count(graph.getEdges()) + " edges ");
+			System.out.println("Graph reduced (based on weight threshold) to " + count(graph.getVertices())
+					+ " vertices and " + count(graph.getEdges()) + " edges");
 		} catch (Exception e) {
 			log.error("error in removing light weight edges from the graph", e);
 		}
 
 		return graph;
 	}
-
-	Session s = Session.getDefaultInstance(new Properties());
 
 	@Override
 	public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
@@ -125,9 +125,11 @@ public class EmailGraphParser extends SimpleFileVisitor<Path> implements GraphPa
 					for (RecipientType type : Arrays.asList(RecipientType.TO, RecipientType.CC, RecipientType.BCC)) {
 
 						if (message.getRecipients(type) != null) {
-							for (Address email : message.getRecipients(type)) {
+							Address[] recipients = message.getRecipients(type);
+
+							for (Address email : recipients) {
 								if (StringUtils.isEmpty(suffix) || email.toString().endsWith(suffix)) {
-									addEmailPair(from.toLowerCase(), email.toString(), type);
+									addEmailPair(from.toLowerCase(), email.toString(), type, recipients.length);
 								}
 							}
 						}
@@ -137,12 +139,14 @@ public class EmailGraphParser extends SimpleFileVisitor<Path> implements GraphPa
 				System.err.println("error in parsing email addresses from file " + file + " => " + e.getMessage());
 			} catch (MessagingException e) {
 				System.err.println("error in parsing email message from file " + file + " => " + e.getMessage());
+			} catch (Exception e) {
+				System.err.println("unexpected error in file " + file + " => " + e.getMessage());
 			}
 		}
 		return FileVisitResult.CONTINUE;
 	}
 
-	private void addEmailPair(String from, String to, RecipientType type) {
+	private void addEmailPair(String from, String to, RecipientType type, int n) {
 		Vertex fromVertex = graph.getVertex(from);
 		if (fromVertex == null) {
 			fromVertex = graph.addVertex(from);
@@ -164,11 +168,15 @@ public class EmailGraphParser extends SimpleFileVisitor<Path> implements GraphPa
 			edge = graph.addEdge(UUID.randomUUID().toString(), fromVertex, toVertex, "e");
 		}
 
-		double weight = type == RecipientType.TO ? 1 : 0.5;
+		double weight = type == RecipientType.TO ? 1 : (double) 1 / n;
 		if (edge.getProperty("weight") != null) {
 			weight += (double) edge.getProperty("weight");
 		}
 		edge.setProperty("weight", weight);
+
+		// System.out.println(from + " -> " + to + " (type) = " + type +
+		// ", (n) = " + n + ", (weight) = " + w
+		// + ", (edge-weight) = " + weight);
 	}
 
 	@Override

@@ -23,24 +23,15 @@ public class BetweennessCentrality {
 
 		for (Vertex s : graph.getVertices()) {
 			resetShortPaths();
-			// System.out.println("s = " + s.getId());
 
 			resetDeltas();
 			PriorityQueue<Vertex> stack = calculateShortestPaths(s);
 
 			while (!stack.isEmpty()) {
 				Vertex w = stack.poll();
-				// System.out.println(w.getId() + " sigma[" + getSigma(w) +
-				// "], dist[" + getDistance(w) + "], pred[" +
-				// Arrays.toString(getPreds(w).toArray()));
-				// System.out.println("\tw = " + w.getId());
 
 				for (Vertex v : getPreds(w)) {
-					// System.out.println("\t\tv = " + v.getId());
 					double delta = getDelta(v) + (getSigma(v) / getSigma(w)) * (1 + getDelta(w));
-					// System.out.println("\t\tdelta ==> " + getDelta(v) +
-					// " + (" + getSigma(v) + "/" + getSigma(w)
-					// + ") * (1 + " + getDelta(w) + ") ==> " + delta);
 					setDelta(v, delta);
 				}
 
@@ -49,19 +40,6 @@ public class BetweennessCentrality {
 				}
 			}
 		}
-
-		cleanup();
-	}
-
-	private void cleanup() {
-		for (Vertex vertex : graph.getVertices()) {
-			if (getCentrality(vertex) <= 0) {
-				vertex.getEdges(Direction.BOTH).forEach(e -> graph.removeEdge(e));
-				graph.removeVertex(vertex);
-			}
-		}
-		System.out.println("Graph with Betweenness Centrality reduced to " + count(graph.getVertices())
-				+ " vertices and " + count(graph.getEdges()) + " edges");
 	}
 
 	@SuppressWarnings("unchecked")
