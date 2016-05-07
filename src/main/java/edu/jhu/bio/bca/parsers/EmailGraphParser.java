@@ -69,12 +69,13 @@ public class EmailGraphParser extends SimpleFileVisitor<Path> implements GraphPa
 	public void init(CommandLine cli) {
 		suffix = cli.getOptionValue("email_parser_email_suffix", "enron.com");
 		folderNameFilter = cli.getOptionValue("email_parser_folder_name_filter", "sent");
-		weightThreshold = Integer.parseInt(cli.getOptionValue("email_parser_edge_min_weight", "5"));
+		weightThreshold = Integer.parseInt(cli.getOptionValue("email_parser_edge_min_weight", "25"));
 	}
 
 	@Override
 	public MGraph parse(String path) {
 		try {
+			// scan all directories
 			Files.walkFileTree(Paths.get(path), this);
 			System.out.println("Directories processed = " + dirCount);
 			System.out.println("Files processed = " + fileCount);
@@ -85,6 +86,8 @@ public class EmailGraphParser extends SimpleFileVisitor<Path> implements GraphPa
 		}
 
 		try {
+			// remove edges and nodes that are less than the given weight
+			// threshold
 			for (Edge edge : graph.getEdges()) {
 				if ((double) edge.getProperty("weight") < weightThreshold) {
 					graph.removeEdge(edge);
@@ -113,15 +116,19 @@ public class EmailGraphParser extends SimpleFileVisitor<Path> implements GraphPa
 		if (attrs.isRegularFile()) {
 			fileCount++;
 
+			// convert file to email message
 			try (FileInputStream fis = new FileInputStream(file.toFile())) {
 				MimeMessage message = new MimeMessage(s, fis);
 
+				// retrieve FROM email address
 				for (Address fromEmail : message.getFrom()) {
 					String from = fromEmail.toString();
+					// only interested in @enron.com addresses
 					if (!StringUtils.isEmpty(suffix) && !from.endsWith(suffix)) {
 						continue;
 					}
 
+					// process all recipients
 					for (RecipientType type : Arrays.asList(RecipientType.TO, RecipientType.CC, RecipientType.BCC)) {
 
 						if (message.getRecipients(type) != null) {
@@ -146,14 +153,26 @@ public class EmailGraphParser extends SimpleFileVisitor<Path> implements GraphPa
 		return FileVisitResult.CONTINUE;
 	}
 
+	/**
+	 * Creates an email pair as two vertices in the graph with an edge between
+	 * them. The edge weight corresponds to the number of emails sent between
+	 * the two users
+	 * 
+	 * @param from
+	 * @param to
+	 * @param type
+	 * @param n
+	 */
 	private void addEmailPair(String from, String to, RecipientType type, int n) {
 		Vertex fromVertex = graph.getVertex(from);
 		if (fromVertex == null) {
+			// add new FROM vertex
 			fromVertex = graph.addVertex(from);
 		}
 
 		Vertex toVertex = graph.getVertex(to);
 		if (toVertex == null) {
+			// add new TO vertex
 			toVertex = graph.addVertex(to);
 		}
 
@@ -165,9 +184,11 @@ public class EmailGraphParser extends SimpleFileVisitor<Path> implements GraphPa
 		}
 
 		if (edge == null) {
+			// add new edge
 			edge = graph.addEdge(UUID.randomUUID().toString(), fromVertex, toVertex, "e");
 		}
 
+		// compute weight
 		double weight = type == RecipientType.TO ? 1 : (double) 1 / n;
 		if (edge.getProperty("weight") != null) {
 			weight += (double) edge.getProperty("weight");

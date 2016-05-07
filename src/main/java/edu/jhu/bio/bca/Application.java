@@ -18,6 +18,12 @@ import edu.jhu.bio.bca.model.MGraph;
 import edu.jhu.bio.bca.parsers.GraphParser;
 import edu.jhu.bio.bca.utils.GraphUtils;
 
+/**
+ * Application entry point
+ * 
+ * @author adeelq
+ *
+ */
 @Configuration
 @ComponentScan
 public class Application implements CommandLineRunner {
@@ -49,7 +55,14 @@ public class Application implements CommandLineRunner {
 		// input path
 		String path = cli.getOptionValue("input");
 
-		// retrieve parser
+		/**
+		 * The reason I am allowing the user to specify the name of the parser
+		 * because we can potentially add a different parser to operate on a
+		 * completely different dataset. In that case, the user will choose a
+		 * different parser based on the dataset this application is running on.
+		 * The job of the parser is to parse the data and create a graph which
+		 * is then analyzed by the BetweennessCentrality class.
+		 */
 		String parserClassName = cli.getOptionValue("parser", "EmailGraphParser");
 		GraphParser parser = getParser(GraphParser.class.getPackage().getName() + "." + parserClassName);
 		if (parser == null) {

@@ -10,6 +10,15 @@ import com.tinkerpop.blueprints.Vertex;
 
 import edu.jhu.bio.bca.model.MGraph;
 
+/**
+ * BetweennessCentrality
+ * 
+ * Implementation based on Brandes algorithm as described in "Graph algorithms
+ * in the Language of Linear Algebra" book. Chapter 6
+ * 
+ * @author adeelq
+ *
+ */
 public class BetweennessCentrality {
 
 	private final MGraph graph;
@@ -18,23 +27,38 @@ public class BetweennessCentrality {
 		this.graph = graph;
 	}
 
+	/**
+	 * Process the complete graph and computes betweenness centrality for each
+	 * node in the graph
+	 */
 	public void process() {
+		// zero out all centrality values
 		resetCentralities();
 
+		// process each node
 		for (Vertex s : graph.getVertices()) {
+			// reset any shortest path related properties on the node
 			resetShortPaths();
 
+			// delta is used in reverse calculation of BC, reset the property on
+			// the node
 			resetDeltas();
+			// calculate shortest paths to all nodes from the node s
+			// and store the results in a FILO stack so that we are able to
+			// process the last element in the shortest path first
 			PriorityQueue<Vertex> stack = calculateShortestPaths(s);
 
+			// process nodes in the shortest path
 			while (!stack.isEmpty()) {
 				Vertex w = stack.poll();
 
+				// process each predecessor and calculate delta
 				for (Vertex v : getPreds(w)) {
 					double delta = getDelta(v) + (getSigma(v) / getSigma(w)) * (1 + getDelta(w));
 					setDelta(v, delta);
 				}
 
+				// update centrlaity
 				if (w != s) {
 					setCentrality(w, getCentrality(w) + getDelta(w));
 				}
@@ -42,12 +66,21 @@ public class BetweennessCentrality {
 		}
 	}
 
+	/**
+	 * Calculates shortest paths to all other nodes in the graph from the given
+	 * node using the Dijkestra algorithm
+	 * 
+	 * @param vertex
+	 * @return
+	 */
 	@SuppressWarnings("unchecked")
 	private PriorityQueue<Vertex> calculateShortestPaths(Vertex vertex) {
 		PriorityQueue<Vertex> stack = new PriorityQueue<Vertex>(new StackComparator());
 		PriorityQueue<Vertex> queue = new PriorityQueue<Vertex>(new QueueComparator());
 
+		// sigma represents the shortest path from given vertex
 		setSigma(vertex, 1);
+		// distance represents the number of hops from given vertex
 		setDistance(vertex, 0);
 
 		queue.add(vertex);
@@ -55,12 +88,19 @@ public class BetweennessCentrality {
 			Vertex v = queue.poll();
 			stack.add(v);
 
+			// process all neighbors of given vertex
 			for (Vertex w : v.getVertices(Direction.IN)) {
+				// distance so far
 				double currentDistance = getDistance(w);
+				// distance to next node
 				double forwardDistance = getDistance(v) + getEdgeWeight(v, w);
 
+				// found a shorter path
 				if (forwardDistance < currentDistance) {
+					// queues need to be updated to reposition elements based on
+					// new "dist" property
 					updateQueuesWithDistance(w, forwardDistance, queue, stack);
+					// unvisited node
 					if (currentDistance == Integer.MAX_VALUE) {
 						queue.add(w);
 					}
@@ -68,6 +108,8 @@ public class BetweennessCentrality {
 					getPreds(w).clear();
 				}
 
+				// add current node to the shortest path and update sigma and
+				// preds
 				if (getDistance(w) == forwardDistance) {
 					setSigma(w, getSigma(w) + getSigma(v));
 					getPreds(w).add(v);
@@ -78,6 +120,15 @@ public class BetweennessCentrality {
 		return stack;
 	}
 
+	/**
+	 * Removes and reinserts the given vertices in the queue with the updated
+	 * distance. This is a common technique to perform in-place sorting of the
+	 * queue elements
+	 * 
+	 * @param v
+	 * @param d
+	 * @param queues
+	 */
 	@SuppressWarnings("unchecked")
 	private void updateQueuesWithDistance(Vertex v, double d, PriorityQueue<Vertex>... queues) {
 		setDistance(v, d);
@@ -109,6 +160,13 @@ public class BetweennessCentrality {
 		}
 	}
 
+	/**
+	 * Returns edge weight between the given nodes. Default is 1
+	 * 
+	 * @param from
+	 * @param to
+	 * @return
+	 */
 	private double getEdgeWeight(Vertex from, Vertex to) {
 		for (Edge e : from.getEdges(Direction.IN)) {
 			if (e.getVertex(Direction.OUT) == to) {
